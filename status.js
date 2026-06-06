@@ -17,88 +17,85 @@ app.get("/", (req, res) => {
 app.listen(process.env.PORT || 3000);
 
 // ---- логика Discord ----
+let messageId = null;
 let lastState = null;
 
 console.log("Bot started");
 
 async function updateStatus() {
   let data = null;
+  let ping = "N/A";
 
   try {
     const start = Date.now();
-
-const start = Date.now();
-data = await status(SERVER_IP);
-const ping = Date.now() - start + "ms";
-
-const ping = Date.now() - start + "ms";
+    data = await status(SERVER_IP);
+    ping = Date.now() - start + "ms";
   } catch (e) {
     data = null;
+    ping = "N/A";
   }
 
   const online = data ? "🟢 Online" : "🔴 Offline";
   const players = data ? `${data.players.online}/${data.players.max}` : "0/0";
+
   const currentState = JSON.stringify({
-  online: !!data,
-  players: data ? data.players.online : 0,
-  ping: ping
-});
+    online: !!data,
+    players: data ? data.players.online : 0,
+    ping
+  });
 
-if (currentState === lastState) return;
-lastState = currentState;
-  
- const payload = {
-  embeds: [
-    {
-      title: "🎮 Minecraft Server Status",
-      color: online.includes("🟢") ? 0x2ecc71 : 0xe74c3c,
+  if (currentState === lastState) return;
+  lastState = currentState;
 
-      fields: [
-        {
-          name: "Status",
-          value: online,
-          inline: true
+  const payload = {
+    embeds: [
+      {
+        title: "🎮 Minecraft Server Status",
+        color: online.includes("🟢") ? 0x2ecc71 : 0xe74c3c,
+
+        fields: [
+          {
+            name: "Status",
+            value: online,
+            inline: true
+          },
+          {
+            name: "Ping",
+            value: ping,
+            inline: true
+          },
+          {
+            name: "Players",
+            value: players,
+            inline: true
+          },
+          {
+            name: "Server IP",
+            value: `\`${SERVER_IP}\``,
+            inline: false
+          },
+          {
+            name: "Updated",
+            value: "just now",
+            inline: false
+          }
+        ],
+
+        footer: {
+          text: "Live status via webhook"
         },
-        {
-          name: "Ping",
-          value: ping,
-          inline: true
-        },
-        {
-          name: "Players",
-          value: players,
-          inline: true
-        },
-        {
-          name: "Server IP",
-          value: `\`${PORT ? `${SERVER_IP}:${PORT}` : SERVER_IP}\``,
-          inline: false
-        }
-        {
-          name: "Updated",
-          value: "just now",
-          inline: false
-        }
-      ],
 
-      footer: {
-        text: "Live status via webhook"
-      },
-
-      timestamp: new Date()
-    }
-  ]
-};
+        timestamp: new Date()
+      }
+    ]
+  };
 
   try {
-    // первый запуск — создаём сообщение
     if (!messageId) {
       const res = await axios.post(WEBHOOK_URL + "?wait=true", payload);
       messageId = res.data.id;
       console.log("Message created");
-    } 
-    // дальше — обновляем его
-    else {
+    } else {
       await axios.patch(`${WEBHOOK_URL}/messages/${messageId}`, payload);
     }
   } catch (err) {
