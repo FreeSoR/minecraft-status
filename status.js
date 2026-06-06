@@ -65,9 +65,9 @@ async function updateStatus() {
             inline: true
           },
           {
-            name: "Players",
-            value: players,
-            inline: true
+          name: "Latency",
+          value: `~${ping} (Render → server)`,
+          inline: true
           },
           {
             name: "Server IP",
