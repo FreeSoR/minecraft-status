@@ -1,5 +1,6 @@
 const express = require("express");
 const axios = require("axios");
+const net = require("net");
 const { status } = require("minecraft-server-util");
 
 const app = express();
@@ -7,6 +8,7 @@ const app = express();
 // ---- SETTINGS ----
 const WEBHOOK_URL = "https://discord.com/api/webhooks/1512843513342202078/-VDQuKn1ORl6NEgUsSMGH6gSgyxR7JrLRgqWTQYc1Qut-dGXp0y6Bbhuqs0y2TaMZF38";
 const SERVER_IP = "chloches.play.hosting";
+const PORT = 25565;
 
 // ---- keep Render alive ----
 app.get("/", (req, res) => {
@@ -21,32 +23,61 @@ let lastState = null;
 
 console.log("Bot started");
 
+// 🔌 STEP 1: real connection test (IMPORTANT FIX)
+function checkServer(host, port, timeout = 3000) {
+  return new Promise((resolve) => {
+    const socket = new net.Socket();
+
+    let done = false;
+
+    socket.setTimeout(timeout);
+
+    socket
+      .connect(port, host, () => {
+        done = true;
+        socket.destroy();
+        resolve(true);
+      })
+      .on("error", () => {
+        if (!done) {
+          done = true;
+          resolve(false);
+        }
+      })
+      .on("timeout", () => {
+        if (!done) {
+          done = true;
+          socket.destroy();
+          resolve(false);
+        }
+      });
+  });
+}
+
 async function updateStatus() {
   let data = null;
 
-  // IMPORTANT FIX: treat failure as OFFLINE
-  try {
-    data = await status(SERVER_IP, 25565, {
-      timeout: 3000
-    });
-  } catch (e) {
-    data = null;
+  // 🔥 STEP 2: first check REAL connectivity
+  const isOnline = await checkServer(SERVER_IP, PORT);
+
+  if (isOnline) {
+    try {
+      data = await status(SERVER_IP, PORT, { timeout: 3000 });
+    } catch {
+      data = null;
+    }
   }
 
-  const isOnline = !!data;
+  const online = isOnline && data ? "🟢 Online" : "🔴 Offline";
 
-  const online = isOnline ? "🟢 Online" : "🔴 Offline";
-
-  // IMPORTANT FIX: safe player fallback
-  const players = isOnline
+  const players = isOnline && data
     ? `${data.players.online}/${data.players.max}`
     : "0/0";
 
-  // FIX: proper smart state tracking
+  // 🧠 SMART STATE (reliable now)
   const currentState = JSON.stringify({
-    online: isOnline,
-    playersOnline: isOnline ? data.players.online : 0,
-    playersMax: isOnline ? data.players.max : 0
+    online: isOnline && !!data,
+    players: data ? data.players.online : 0
   });
 
   if (currentState === lastState) return;
@@ -56,7 +87,7 @@ async function updateStatus() {
     embeds: [
       {
         title: "🎮 Minecraft Server Status",
-        color: isOnline ? 0x2ecc71 : 0xe74c3c,
+        color: online.includes("🟢") ? 0x2ecc71 : 0xe74c3c,
 
         fields: [
           {
@@ -99,9 +130,7 @@ async function updateStatus() {
 
 // run loop
 setInterval(() => {
-  updateStatus().catch(err => {
-    console.log("Update crash:", err.message);
-  });
+  updateStatus().catch(err => console.log("Update error:", err.message));
 }, 15000);
 
 updateStatus();
