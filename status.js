@@ -17,7 +17,7 @@ app.get("/", (req, res) => {
 app.listen(process.env.PORT || 3000);
 
 // ---- логика Discord ----
-let messageId = null;
+let lastState = null;
 
 console.log("Bot started");
 
@@ -25,14 +25,28 @@ async function updateStatus() {
   let data = null;
 
   try {
-    data = await status("chloches.play.hosting");
+    const start = Date.now();
+
+const start = Date.now();
+data = await status(SERVER_IP);
+const ping = Date.now() - start + "ms";
+
+const ping = Date.now() - start + "ms";
   } catch (e) {
     data = null;
   }
 
   const online = data ? "🟢 Online" : "🔴 Offline";
   const players = data ? `${data.players.online}/${data.players.max}` : "0/0";
+  const currentState = JSON.stringify({
+  online: !!data,
+  players: data ? data.players.online : 0,
+  ping: ping
+});
 
+if (currentState === lastState) return;
+lastState = currentState;
+  
  const payload = {
   embeds: [
     {
@@ -46,6 +60,11 @@ async function updateStatus() {
           inline: true
         },
         {
+          name: "Ping",
+          value: ping,
+          inline: true
+        },
+        {
           name: "Players",
           value: players,
           inline: true
@@ -53,6 +72,11 @@ async function updateStatus() {
         {
           name: "Server IP",
           value: `\`${PORT ? `${SERVER_IP}:${PORT}` : SERVER_IP}\``,
+          inline: false
+        }
+        {
+          name: "Updated",
+          value: "just now",
           inline: false
         }
       ],
