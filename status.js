@@ -52,7 +52,7 @@ async function updateStatus() {
         },
         {
           name: "Server IP",
-          value: `\`${SERVER_IP}:${PORT}\``,
+          value: `\`${PORT ? `${SERVER_IP}:${PORT}` : SERVER_IP}\``,
           inline: false
         }
       ],
