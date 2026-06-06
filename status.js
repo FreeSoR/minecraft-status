@@ -15,7 +15,7 @@ app.get("/", (req, res) => {
 
 app.listen(process.env.PORT || 3000);
 
-// ---- logic ----
+// ---- state ----
 let messageId = null;
 let lastState = null;
 
@@ -35,12 +35,16 @@ async function updateStatus() {
     ? `${data.players.online}/${data.players.max}`
     : "0/0";
 
+  // SAFE state check (won’t freeze updates)
   const currentState = JSON.stringify({
     online: !!data,
     players: data ? data.players.online : 0
   });
 
-  if (currentState === lastState) return;
+  if (currentState === lastState) {
+    return;
+  }
+
   lastState = currentState;
 
   const payload = {
@@ -57,7 +61,7 @@ async function updateStatus() {
           },
           {
             name: "Players",
-            value: players,
+            value: `${players} online`,
             inline: true
           },
           {
@@ -88,6 +92,11 @@ async function updateStatus() {
   }
 }
 
-// run every 15 seconds
-setInterval(updateStatus, 15000);
+// ---- IMPORTANT: always keep running ----
+setInterval(() => {
+  updateStatus().catch(err => {
+    console.log("Update error:", err.message);
+  });
+}, 15000);
+
 updateStatus();
