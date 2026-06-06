@@ -1,6 +1,5 @@
 const express = require("express");
 const axios = require("axios");
-const net = require("net");
 const { status } = require("minecraft-server-util");
 
 const app = express();
@@ -12,80 +11,34 @@ const PORT = 25565;
 
 // ---- keep Render alive ----
 app.get("/", (req, res) => {
-  res.send("Minecraft status bot is running");
+  res.send("Minecraft status bot running");
 });
 
 app.listen(process.env.PORT || 3000);
 
 // ---- state ----
 let messageId = null;
-let lastState = null;
+let lastOnline = null;
 
 console.log("Bot started");
 
-// 🔌 real connection check (truth source)
-function checkServer(host, port, timeout = 3000) {
-  return new Promise((resolve) => {
-    const socket = new net.Socket();
-
-    let done = false;
-
-    socket.setTimeout(timeout);
-
-    socket
-      .connect(port, host, () => {
-        done = true;
-        socket.destroy();
-        resolve(true);
-      })
-      .on("error", () => {
-        if (!done) {
-          done = true;
-          resolve(false);
-        }
-      })
-      .on("timeout", () => {
-        if (!done) {
-          done = true;
-          socket.destroy();
-          resolve(false);
-        }
-      });
-  });
+// ---- check server ----
+async function checkServer() {
+  try {
+    await status(SERVER_IP, PORT, { timeout: 5000 });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
+// ---- main loop ----
 async function updateStatus() {
-  let data = null;
+  const isOnline = await checkServer();
 
-  // STEP 1: real reachability check
-  const isOnline = await checkServer(SERVER_IP, PORT);
-
-  // STEP 2: only fetch status if reachable
-  if (isOnline) {
-    try {
-      data = await status(SERVER_IP, PORT, { timeout: 3000 });
-    } catch {
-      data = null;
-    }
-  }
-
-  // 🔥 FIXED LOGIC
-  const online = isOnline ? "🟢 Online" : "🔴 Offline";
-
-  const players =
-    data && data.players
-      ? `${data.players.online}/${data.players.max}`
-      : "0/0";
-
-  // SMART UPDATE (safe)
-  const currentState = JSON.stringify({
-    online: isOnline,
-    playersOnline: data ? data.players.online : 0,
-    playersMax: data ? data.players.max : 0
-  });
-
-  if (currentState === lastState) return;
-  lastState = currentState;
+  // only update if state changed
+  if (isOnline === lastOnline) return;
+  lastOnline = isOnline;
 
   const payload = {
     embeds: [
@@ -96,25 +49,17 @@ async function updateStatus() {
         fields: [
           {
             name: "Status",
-            value: online,
+            value: isOnline ? "🟢 Online" : "🔴 Offline",
             inline: true
           },
           {
-            name: "Players",
-            value: players,
-            inline: true
-          },
-          {
-            name: "Server IP",
+            name: "Server",
             value: `\`${SERVER_IP}\``,
             inline: false
-          },
-          {
-            name: "Updated",
-            value: `<t:${Math.floor(Date.now() / 1000)}:R>`,
-            inline: false
           }
-        ]
+        ],
+
+        timestamp: new Date()
       }
     ]
   };
@@ -128,13 +73,10 @@ async function updateStatus() {
       await axios.patch(`${WEBHOOK_URL}/messages/${messageId}`, payload);
     }
   } catch (err) {
-    console.log("ERROR:", err.message);
+    console.log("Error:", err.message);
   }
 }
 
-// run loop
-setInterval(() => {
-  updateStatus().catch(err => console.log("Update error:", err.message));
-}, 15000);
-
+// run every 15 seconds
+setInterval(updateStatus, 15000);
 updateStatus();
