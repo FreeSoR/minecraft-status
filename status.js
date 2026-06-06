@@ -7,7 +7,7 @@ const app = express();
 // ---- НАСТРОЙКИ ----
 const WEBHOOK_URL = "https://discord.com/api/webhooks/1512843513342202078/-VDQuKn1ORl6NEgUsSMGH6gSgyxR7JrLRgqWTQYc1Qut-dGXp0y6Bbhuqs0y2TaMZF38";
 const SERVER_IP = "chloches.play.hosting";
-const PORT = 45628;
+const PORT = null;
 
 // ---- чтобы Render не засыпал ----
 app.get("/", (req, res) => {
@@ -25,7 +25,7 @@ async function updateStatus() {
   let data = null;
 
   try {
-    data = await status(SERVER_IP, PORT);
+    data = await status("chloches.play.hosting");
   } catch (e) {
     data = null;
   }
