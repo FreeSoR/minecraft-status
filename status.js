@@ -23,7 +23,7 @@ let lastState = null;
 
 console.log("Bot started");
 
-// 🔌 STEP 1: real connection test (IMPORTANT FIX)
+// 🔌 real connection check (truth source)
 function checkServer(host, port, timeout = 3000) {
   return new Promise((resolve) => {
     const socket = new net.Socket();
@@ -57,9 +57,10 @@ function checkServer(host, port, timeout = 3000) {
 async function updateStatus() {
   let data = null;
 
-  // 🔥 STEP 2: first check REAL connectivity
+  // STEP 1: real reachability check
   const isOnline = await checkServer(SERVER_IP, PORT);
 
+  // STEP 2: only fetch status if reachable
   if (isOnline) {
     try {
       data = await status(SERVER_IP, PORT, { timeout: 3000 });
@@ -68,16 +69,19 @@ async function updateStatus() {
     }
   }
 
-  const online = isOnline && data ? "🟢 Online" : "🔴 Offline";
+  // 🔥 FIXED LOGIC
+  const online = isOnline ? "🟢 Online" : "🔴 Offline";
 
-  const players = isOnline && data
-    ? `${data.players.online}/${data.players.max}`
-    : "0/0";
+  const players =
+    data && data.players
+      ? `${data.players.online}/${data.players.max}`
+      : "0/0";
 
-  // 🧠 SMART STATE (reliable now)
+  // SMART UPDATE (safe)
   const currentState = JSON.stringify({
-    online: isOnline && !!data,
-    players: data ? data.players.online : 0
+    online: isOnline,
+    playersOnline: data ? data.players.online : 0,
+    playersMax: data ? data.players.max : 0
   });
 
   if (currentState === lastState) return;
@@ -87,7 +91,7 @@ async function updateStatus() {
     embeds: [
       {
         title: "🎮 Minecraft Server Status",
-        color: online.includes("🟢") ? 0x2ecc71 : 0xe74c3c,
+        color: isOnline ? 0x2ecc71 : 0xe74c3c,
 
         fields: [
           {
