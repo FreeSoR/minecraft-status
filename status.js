@@ -80,12 +80,6 @@ async function updateStatus() {
             inline: false
           }
         ],
-
-        footer: {
-          text: "Live status via webhook"
-        },
-
-        timestamp: new Date()
       }
     ]
   };
