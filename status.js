@@ -76,7 +76,7 @@ async function updateStatus() {
           },
           {
             name: "Updated",
-            value: "just now",
+            value: `<t:${Math.floor(Date.now() / 1000)}:R>`,
             inline: false
           }
         ],
