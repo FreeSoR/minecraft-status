@@ -33,9 +33,38 @@ async function updateStatus() {
   const online = data ? "🟢 Online" : "🔴 Offline";
   const players = data ? `${data.players.online}/${data.players.max}` : "0/0";
 
-  const payload = {
-    content: `**Minecraft Server Status**\n${online}\nPlayers: ${players}`
-  };
+ const payload = {
+  embeds: [
+    {
+      title: "🎮 Minecraft Server Status",
+      color: online.includes("🟢") ? 0x2ecc71 : 0xe74c3c,
+
+      fields: [
+        {
+          name: "Status",
+          value: online,
+          inline: true
+        },
+        {
+          name: "Players",
+          value: players,
+          inline: true
+        },
+        {
+          name: "Server IP",
+          value: `\`${SERVER_IP}:${PORT}\``,
+          inline: false
+        }
+      ],
+
+      footer: {
+        text: "Live status via webhook"
+      },
+
+      timestamp: new Date()
+    }
+  ]
+};
 
   try {
     // первый запуск — создаём сообщение
